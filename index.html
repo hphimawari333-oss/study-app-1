@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>学習アプリ</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body { font-family: sans-serif; padding: 10px; background:#f5f5f5;}
+.card { background:#fff; padding:10px; margin:10px 0; border-radius:10px;}
+button { padding:10px; margin:5px; border:none; border-radius:8px; background:#4CAF50; color:#fff;}
+input, select { padding:8px; margin:5px; width:90%;}
+.bad {color:red;}
+.good {color:green;}
+</style>
+</head>
+<body>
+
+<h2>📚 学習アプリ</h2>
+
+<div class="card">
+<h3>① テスト入力</h3>
+<input type="number" id="score" placeholder="点数（0-100）">
+<select id="subject">
+<option>算数</option>
+<option>英語</option>
+<option>理科</option>
+<option>社会</option>
+</select>
+<input type="file" id="photo">
+<button onclick="saveTest()">保存</button>
+</div>
+
+<div class="card">
+<h3>🎁 シール</h3>
+<p id="stickers">0</p>
+</div>
+
+<div class="card">
+<h3>❌ 間違いノート</h3>
+<div id="mistakes"></div>
+</div>
+
+<div class="card">
+<h3>🔥 負けパターン</h3>
+<div id="patterns"></div>
+</div>
+
+<div class="card">
+<h3>✏️ 復習テスト</h3>
+<div id="quiz"></div>
+</div>
+
+<script>
+let data = JSON.parse(localStorage.getItem("studyApp")) || {
+  stickers:0,
+  mistakes:[],
+  patterns:{}
+};
+
+function save(){
+  localStorage.setItem("studyApp", JSON.stringify(data));
+  render();
+}
+
+function getSticker(score){
+  if(score==100) return 5;
+  if(score>=90) return 3;
+  if(score>=70) return 2;
+  if(score>=50) return 1;
+  return 0;
+}
+
+function randomPattern(){
+  const list=["計算ミス","単位ミス","読解ミス","ケアレスミス","理解不足"];
+  return list[Math.floor(Math.random()*list.length)];
+}
+
+function saveTest(){
+  let score = Number(document.getElementById("score").value);
+  if(!score && score!==0) return;
+
+  let stickers = getSticker(score);
+  data.stickers += stickers;
+
+  // 間違い生成（簡易）
+  let missCount = Math.floor((100-score)/20);
+  for(let i=0;i<missCount;i++){
+    let p = randomPattern();
+    data.mistakes.push(p);
+    data.patterns[p] = (data.patterns[p]||0)+1;
+  }
+
+  save();
+  alert("保存！シール+"+stickers);
+}
+
+function render(){
+  document.getElementById("stickers").innerText = data.stickers;
+
+  let m="";
+  data.mistakes.slice(-10).forEach(x=> m+="<p class='bad'>"+x+"</p>");
+  document.getElementById("mistakes").innerHTML=m;
+
+  let p="";
+  Object.entries(data.patterns).sort((a,b)=>b[1]-a[1])
+  .forEach(x=> p+="<p>"+x[0]+" : "+x[1]+"</p>");
+  document.getElementById("patterns").innerHTML=p;
+
+  generateQuiz();
+}
+
+function generateQuiz(){
+  let q="";
+  for(let i=0;i<3;i++){
+    let a = Math.floor(Math.random()*10);
+    let b = Math.floor(Math.random()*10);
+    let ans = a+b;
+
+    q += `
+    <div>
+      ${a} + ${b} =
+      <input id="q${i}">
+      <button onclick="check(${i},${ans})">OK</button>
+    </div>`;
+  }
+  document.getElementById("quiz").innerHTML=q;
+}
+
+function check(i,ans){
+  let val = document.getElementById("q"+i).value;
+  if(Number(val)==ans){
+    alert("正解！");
+  }else{
+    alert("ミス！");
+    let p = randomPattern();
+    data.patterns[p]=(data.patterns[p]||0)+1;
+    data.mistakes.push(p);
+    save();
+  }
+}
+
+render();
+</script>
+
+</body>
+</html>
