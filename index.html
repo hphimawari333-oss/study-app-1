@@ -357,3 +357,103 @@ function applyOCR(){
   render(document.getElementById("subject").value);
 }
 </script>
+<button onclick="runAnalysis()">分析する</button>
+
+<div id="analysisResult"></div>
+<div id="actionPlan"></div>
+<div id="nextQuestion"></div>
+
+<script>
+// ====== 分析 ======
+function runAnalysis(){
+  const subject = document.getElementById("subject").value;
+  const list = data[subject] || [];
+
+  if(list.length === 0){
+    alert("データがないよ");
+    return;
+  }
+
+  const scores = list.map(x=>x.score);
+  const avg = scores.reduce((a,b)=>a+b,0) / scores.length;
+  const latest = scores[scores.length - 1];
+  const diff = latest - avg;
+
+  // ====== 傾向判定 ======
+  let status = "";
+  if(avg >= 80){
+    status = "安定している";
+  }else if(avg >= 60){
+    status = "伸び途中";
+  }else{
+    status = "基礎不足";
+  }
+
+  // ====== 問題提起 ======
+  let issue = "";
+  if(diff < -10){
+    issue = "直近の成績が落ちている。理解が曖昧な可能性あり";
+  }else if(avg < 60){
+    issue = "基礎理解が不足している";
+  }else{
+    issue = "あと一歩で安定圏";
+  }
+
+  // ====== 行動提案 ======
+  let action = "";
+  if(avg < 60){
+    action = "基礎問題を3問やろう";
+  }else if(diff < 0){
+    action = "間違えた範囲を復習しよう";
+  }else{
+    action = "応用問題に挑戦してみよう";
+  }
+
+  // ====== 問題生成 ======
+  const question = generateSmartQuestion(subject, avg);
+
+  // ====== 表示 ======
+  document.getElementById("analysisResult").innerHTML =
+    `平均：${avg.toFixed(1)}点<br>
+     状態：${status}<br>
+     課題：${issue}`;
+
+  document.getElementById("actionPlan").innerHTML =
+    `👉 次にやること：${action}`;
+
+  document.getElementById("nextQuestion").innerHTML =
+    `📝 問題：${question}`;
+
+  speak("分析したよ。一緒に次やろう");
+}
+
+// ====== 賢い問題生成 ======
+function generateSmartQuestion(subject, avg){
+
+  if(subject === "数学"){
+    if(avg < 60){
+      return "2x + 3 = 7 を解け";
+    }else{
+      return "二次関数 y = x^2 の頂点を求めよ";
+    }
+  }
+
+  if(subject === "英語"){
+    if(avg < 60){
+      return "I ___ to school yesterday. (go)";
+    }else{
+      return "関係代名詞を使って文を作れ";
+    }
+  }
+
+  if(subject === "国語"){
+    if(avg < 60){
+      return "主語と述語を見つけよ";
+    }else{
+      return "筆者の主張を要約せよ";
+    }
+  }
+
+  return "問題生成失敗";
+}
+</script>
