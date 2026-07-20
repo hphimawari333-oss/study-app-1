@@ -924,3 +924,105 @@ function generatePersonalBook(subject){
 
   document.getElementById("question").innerText = book;
 }
+// =======================
+// タグ自動判定エンジン
+// =======================
+
+// 問題ごとの情報を保持
+let currentProblem = {
+  subject: "",
+  type: "",
+  correctAnswer: null
+};
+
+// -----------------------
+// 問題生成（タグ付きに変更）
+// -----------------------
+function generateQuestion(subject){
+
+  const target = getTopWeak(subject);
+
+  let q = "";
+  let answer = null;
+  let type = "";
+
+  if(subject === "math"){
+
+    if(target === "計算ミス"){
+      const a = Math.floor(Math.random()*10)+1;
+      const b = Math.floor(Math.random()*10)+1;
+      q = `${a} + ${b} = ?`;
+      answer = a + b;
+      type = "計算ミス";
+    }
+    else if(target === "理解不足"){
+      q = "5 × 3 = ?";
+      answer = 15;
+      type = "理解不足";
+    }
+    else{
+      q = "12 ÷ 3 = ?";
+      answer = 4;
+      type = "応用";
+    }
+  }
+
+  if(subject === "english"){
+
+    q = "apple の意味は？";
+    answer = "りんご";
+    type = "単語";
+  }
+
+  if(subject === "science"){
+    q = "水の化学式は？";
+    answer = "H2O";
+    type = "理解不足";
+  }
+
+  currentProblem = {
+    subject,
+    type,
+    correctAnswer: answer
+  };
+
+  document.getElementById("question").innerText = q;
+}<h3>✏ 解答入力</h3>
+<input id="answerInput" placeholder="答え">
+<button onclick="checkAnswer()">解答する</button>
+<div id="result"></div>
+function checkAnswer(){
+
+  const userAnswer = document.getElementById("answerInput").value;
+  const correct = currentProblem.correctAnswer;
+  const subject = currentProblem.subject;
+  const type = currentProblem.type;
+
+  let isCorrect = false;
+
+  // -----------------------
+  // 判定（科目別）
+  // -----------------------
+  if(subject === "math"){
+    isCorrect = Number(userAnswer) === correct;
+  }
+
+  if(subject === "english" || subject === "science"){
+    isCorrect = userAnswer.trim() === correct;
+  }
+
+  // -----------------------
+  // フィードバック
+  // -----------------------
+  if(isCorrect){
+    document.getElementById("result").innerText = "⭕ 正解";
+  } else {
+    document.getElementById("result").innerText = `❌ 不正解（正解：${correct}）`;
+
+    // 👉 ここが自動タグ付け
+    recordMistake(subject, type);
+  }
+
+  // 次の問題
+  generateQuestion(subject);
+}
