@@ -606,3 +606,183 @@ function updateStickerUI(){
 // 初期表示
 updateStickerUI();
 </script>
+<div>
+  <h2>📊 テスト入力</h2>
+
+  <select id="subject">
+    <option value="math">数学</option>
+    <option value="english">英語</option>
+    <option value="science">理科</option>
+  </select>
+
+  <input type="number" id="scoreInput" placeholder="点数入力">
+  <button onclick="submitScore()">確定</button>
+
+  <h3>📈 分析</h3>
+  <div id="analysis"></div>
+
+  <h3>❗課題</h3>
+  <div id="issue"></div>
+
+  <h3>📝 問題</h3>
+  <div id="question"></div>
+
+  <h3>🎖 シール</h3>
+  <div id="bigSticker">大シール：0</div>
+  <div id="smallSticker">小シール：0</div>
+</div>
+
+<script>
+// =======================
+// データ構造（科目別）
+// =======================
+let data = JSON.parse(localStorage.getItem("data")) || {
+  math: { history: [], stickers:{big:0, small:0} },
+  english: { history: [], stickers:{big:0, small:0} },
+  science: { history: [], stickers:{big:0, small:0} }
+};
+
+// =======================
+// 現在科目取得
+// =======================
+function getSubject(){
+  return document.getElementById("subject").value;
+}
+
+// =======================
+// スコア登録
+// =======================
+function submitScore(){
+
+  const subject = getSubject();
+  const score = Number(document.getElementById("scoreInput").value);
+  if(!score) return;
+
+  data[subject].history.push(score);
+
+  localStorage.setItem("data", JSON.stringify(data));
+
+  analyze(subject);
+  generateIssue(subject);
+  generateQuestion();
+  convertScoreToSticker(subject, score);
+}
+
+// =======================
+// 分析
+// =======================
+function analyze(subject){
+
+  const history = data[subject].history;
+
+  if(history.length < 2){
+    document.getElementById("analysis").innerText = "データ不足";
+    return;
+  }
+
+  const last = history[history.length - 1];
+  const prev = history[history.length - 2];
+  const diff = last - prev;
+
+  let msg = `前回との差：${diff}`;
+
+  if(diff > 0) msg += "（成長）";
+  if(diff < 0) msg += "（下降）";
+
+  document.getElementById("analysis").innerText = msg;
+}
+
+// =======================
+// 課題
+// =======================
+let currentIssue = "";
+
+function generateIssue(subject){
+
+  const score = data[subject].history.slice(-1)[0];
+
+  if(score < 70){
+    currentIssue = "基礎理解が不足";
+  } else if(score < 90){
+    currentIssue = "ミスが多い";
+  } else if(score < 100){
+    currentIssue = "ケアレスミス対策";
+  } else {
+    currentIssue = "満点維持";
+  }
+
+  document.getElementById("issue").innerText = currentIssue;
+}
+
+// =======================
+// 問題生成
+// =======================
+function generateQuestion(){
+
+  let q = "";
+
+  if(currentIssue.includes("基礎")){
+    q = "基本問題を解こう";
+  } else if(currentIssue.includes("ミス")){
+    q = "見直し問題";
+  } else {
+    q = "応用問題";
+  }
+
+  document.getElementById("question").innerText = q;
+}
+
+// =======================
+// シール変換（科目別）
+// =======================
+function convertScoreToSticker(subject, score){
+
+  let big = 0;
+  let small = 0;
+
+  if(score === 100){
+    big = 3;
+    small = 2;
+  } else if(score >= 90){
+    big = 2;
+    small = 2;
+  } else if(score >= 80){
+    big = 1;
+    small = 2;
+  } else if(score >= 70){
+    small = 2;
+  } else if(score >= 60){
+    small = 1;
+  }
+
+  data[subject].stickers.big += big;
+  data[subject].stickers.small += small;
+
+  localStorage.setItem("data", JSON.stringify(data));
+
+  updateStickerUI(subject);
+}
+
+// =======================
+// 表示
+// =======================
+function updateStickerUI(subject){
+
+  const s = data[subject].stickers;
+
+  document.getElementById("bigSticker").innerText = "大シール：" + s.big;
+  document.getElementById("smallSticker").innerText = "小シール：" + s.small;
+}
+
+// =======================
+// 科目切り替え時
+// =======================
+document.getElementById("subject").addEventListener("change", () => {
+  const subject = getSubject();
+  updateStickerUI(subject);
+  analyze(subject);
+});
+
+// 初期表示
+updateStickerUI(getSubject());
+</script>
