@@ -295,3 +295,65 @@ addScore = function(){
 // ▼ 初期実行
 checkIdle();
 </script>
+<!-- ▼ 画像取り込み -->
+<input type="file" id="imageInput" accept="image/*">
+<button onclick="processImage()">画像読み取り</button>
+
+<!-- ▼ 読み取り結果（編集可能） -->
+<div id="ocrArea" style="display:none;">
+  <h4>読み取り結果（修正してOK）</h4>
+  <textarea id="ocrText" style="width:100%;height:120px;"></textarea>
+  <br>
+  <button onclick="applyOCR()">この内容で反映</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+
+<script>
+// ====== OCR実行 ======
+async function processImage(){
+  const file = document.getElementById("imageInput").files[0];
+  if(!file) return alert("画像を選んで");
+
+  document.getElementById("ocrText").value = "読み取り中...";
+  document.getElementById("ocrArea").style.display = "block";
+
+  const { data: { text } } = await Tesseract.recognize(
+    file,
+    'jpn+eng'
+  );
+
+  document.getElementById("ocrText").value = text;
+}
+
+// ====== OCR結果を解析して反映 ======
+function applyOCR(){
+  const text = document.getElementById("ocrText").value;
+
+  // ▼ 超シンプル抽出（例：英語 80）
+  const lines = text.split("\n");
+
+  lines.forEach(line=>{
+    const match = line.match(/(英語|数学|国語)\s*[:：]?\s*(\d+)/);
+
+    if(match){
+      const subject = match[1];
+      const score = Number(match[2]);
+
+      if(!data[subject]) data[subject] = [];
+
+      data[subject].push({
+        score,
+        date: Date.now()
+      });
+    }
+  });
+
+  localStorage.setItem("scores", JSON.stringify(data));
+
+  speak("読み取ったよ。確認ありがとう！");
+  alert("反映完了");
+
+  render(document.getElementById("subject").value);
+}
+</script>
