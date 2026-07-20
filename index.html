@@ -227,3 +227,71 @@ render();
 
 </body>
 </html>
+<!-- ▼ 追加UI -->
+<select id="subject">
+  <option value="英語">英語</option>
+  <option value="数学">数学</option>
+  <option value="国語">国語</option>
+</select>
+
+<div id="history"></div>
+
+<script>
+// ▼ 教科切り替え
+document.getElementById("subject").addEventListener("change", (e)=>{
+  render(e.target.value);
+});
+
+// ▼ 履歴表示
+function renderHistory(subject) {
+  const scores = data[subject];
+  if (!scores) return;
+
+  const list = scores.map(s => {
+    const d = new Date(s.date);
+    return `${d.toLocaleDateString()} : ${s.score}`;
+  }).join("<br>");
+
+  document.getElementById("history").innerHTML =
+    "<h4>履歴</h4>" + list;
+}
+
+// ▼ renderの最後に必ず追加
+const _originalRender = render;
+render = function(subject){
+  _originalRender(subject);
+  renderHistory(subject);
+};
+
+// ▼ レベルアップ演出（上書き）
+grow = function(state) {
+  if (state === "good") {
+    otterLevel++;
+    speak("レベルアップ！");
+    alert("🦦 レベルアップ！");
+  }
+};
+
+// ▼ サボりチェック
+function checkIdle() {
+  const last = localStorage.getItem("lastStudy");
+  if (!last) return;
+
+  const diff = (Date.now() - last) / (1000*60*60*24);
+
+  if (diff >= 2) {
+    document.getElementById("otter").innerText =
+      "🦦 元気ない…";
+  }
+}
+
+// ▼ addScoreの最後に必ず追加されるようフック
+const _originalAddScore = addScore;
+addScore = function(){
+  _originalAddScore();
+  localStorage.setItem("lastStudy", Date.now());
+};
+
+// ▼ 初期実行
+checkIdle();
+</script>
