@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>学習アプリ完全版</title>
+
+<link rel="manifest" href="manifest.json">
+
+<style>
+body { font-family:sans-serif; background:#eef; padding:10px;}
+.card { background:#fff; padding:12px; margin:10px 0; border-radius:10px;}
+button { padding:10px; margin:5px; border:none; border-radius:8px; background:#4CAF50; color:#fff;}
+input, textarea, select { padding:8px; margin:5px; width:95%;}
+.good {color:green;}
+.bad {color:red;}
+</style>
+</head>
+
+<body>
+
+<h2>📚 学習アプリ完全版</h2>
+
+<div class="card">
+<select id="subject" onchange="initUI()">
+<option value="math">数学</option>
+<option value="english">英語</option>
+<option value="science">理科</option>
+</select>
+</div>
+
+<div class="card">
+<h3>テスト入力</h3>
+<input id="scoreInput" type="number">
+<input type="file" accept="image/*" id="imgInput">
+<button onclick="submitScore()">送信</button>
+</div>
+
+<div class="card">
+<h3>分析</h3>
+<div id="analysis"></div>
+<div id="trend"></div>
+<div id="weakRank"></div>
+</div>
+
+<div class="card">
+<h3>問題</h3>
+<div id="question"></div>
+<input id="answerInput">
+<select id="confidence">
+<option value="high">自信あり</option>
+<option value="low">自信なし</option>
+</select>
+<button onclick="checkAnswer()">回答</button>
+<div id="result"></div>
+</div>
+
+<div class="card">
+<h3>内省</h3>
+<textarea id="reflectionInput"></textarea>
+<button onclick="saveReflection()">保存</button>
+</div>
+
+<div class="card">
+<h3>シール</h3>
+<div id="bigSticker"></div>
+<div id="smallSticker"></div>
+</div>
+
+<script>
+
+// =================
+// 初期データ
+// =================
+let data = JSON.parse(localStorage.getItem("app")) || {
+  math:{history:[], weak:{}, stickers:{big:0,small:0}, reflections:[]},
+  english:{history:[], weak:{}, stickers:{big:0,small:0}, reflections:[]},
+  science:{history:[], weak:{}, stickers:{big:0,small:0}, reflections:[]}
+};
+
+let currentProblem = {};
+
+// =================
+// 保存
+// =================
+function save(){
+  localStorage.setItem("app", JSON.stringify(data));
+}
+
+// =================
+// 科目取得
+// =================
+function getSub(){
+  return document.getElementById("subject").value;
+}
+
+// =================
+// OCR（ダミー）
+// =================
+function runOCR(){
+  const file = document.getElementById("imgInput").files[0];
+  if(file){
+    alert("OCR未実装：画像取得のみ成功");
+  }
+}
+
+// =================
+// スコア登録
+// =================
+function submitScore(){
+
+  runOCR();
+
+  const sub = getSub();
+  const score = Number(document.getElementById("scoreInput").value);
+
+  if(!score && score!==0) return;
+
+  data[sub].history.push(score);
+
+  convertSticker(sub, score);
+  analyze(sub);
+  generateProblem(sub);
+
+  save();
+}
+
+// =================
+// 分析
+// =================
+function analyze(sub){
+
+  const h = data[sub].history;
+
+  if(h.length===0){
+    document.getElementById("analysis").innerText="データなし";
+    return;
+  }
+
+  if(h.length===1){
+    document.getElementById("analysis").innerText="初回データ："+h[0];
+  }
+
+  if(h.length>=2){
+    const diff = h[h.length-1] - h[h.length-2];
+    document.getElementById("analysis").innerText="前回差："+diff;
+  }
+
+  const avg = h.reduce((a,b)=>a+b)/h.length;
+  document.getElementById("trend").innerText="平均："+avg.toFixed(1);
+
+  let weak = data[sub].weak;
+  let sorted = Object.entries(weak).sort((a,b)=>b[1]-a[1]);
+
+  let txt="苦手ランキング\n";
+  sorted.forEach(w=>{
+    txt += w[0]+"："+w[1]+"\n";
+  });
+
+  document.getElementById("weakRank").innerText=txt;
+}
+
+// =================
+// 問題生成（適応）
+// =================
+function generateProblem(sub){
+
+  let weak = data[sub].weak;
+  let topWeak = Object.keys(weak).sort((a,b)=>weak[b]-weak[a])[0];
+
+  let q,a,type;
+
+  if(sub==="math"){
+
+    let x=Math.floor(Math.random()*10)+1;
+    let y=Math.floor(Math.random()*10)+1;
+
+    if(topWeak==="計算ミス"){
+      q=`${x}×${y}=?`;
+      a=x*y;
+      type="計算ミス";
+    }else{
+      q=`${x}+${y}=?`;
+      a=x+y;
+      type="基本";
+    }
+  }
+
+  if(sub==="english"){
+    let list=[["apple","りんご"],["dog","犬"],["book","本"]];
+    let w=list[Math.floor(Math.random()*list.length)];
+    q=w[0]+"の意味は？";
+    a=w[1];
+    type="単語";
+  }
+
+  if(sub==="science"){
+    q="水の化学式は？";
+    a="H2O";
+    type="理解不足";
+  }
+
+  currentProblem={sub,type,a};
+
+  document.getElementById("question").innerText=q;
+}
+
+// =================
+// 回答
+// =================
+function checkAnswer(){
+
+  const ans=document.getElementById("answerInput").value;
+  const conf=document.getElementById("confidence").value;
+  const p=currentProblem;
+
+  let ok=(p.sub==="math")
+    ? Number(ans)==p.a
+    : ans==p.a;
+
+  if(ok){
+    document.getElementById("result").innerHTML="<span class='good'>正解</span>";
+
+    if(conf==="low"){
+      recordWeak(p.sub,"理解浅い");
+      alert("偶然正解の可能性");
+    }
+
+  }else{
+    document.getElementById("result").innerHTML="<span class='bad'>不正解</span>";
+
+    if(conf==="high"){
+      alert("理解ミス（危険）");
+    }
+
+    recordWeak(p.sub,p.type);
+    askReflection(p.type);
+  }
+
+  generateProblem(p.sub);
+  save();
+}
+
+// =================
+// 苦手記録
+// =================
+function recordWeak(sub,type){
+
+  if(!data[sub].weak[type]){
+    data[sub].weak[type]=0;
+  }
+
+  data[sub].weak[type]++;
+}
+
+// =================
+// 内省誘導
+// =================
+function askReflection(type){
+
+  let msg="原因分析\n";
+
+  if(type==="計算ミス"){
+    msg+="途中式・符号確認した？";
+  }
+
+  if(type==="単語"){
+    msg+="意味orスペル？";
+  }
+
+  document.getElementById("analysis").innerText += "\n"+msg;
+}
+
+// =================
+// シール
+// =================
+function convertSticker(sub,score){
+
+  let big=0,small=0;
+
+  if(score===100){big=3;small=2;}
+  else if(score>=90){big=2;small=2;}
+  else if(score>=80){big=1;small=2;}
+  else if(score>=70){small=2;}
+  else if(score>=60){small=1;}
+
+  data[sub].stickers.big+=big;
+  data[sub].stickers.small+=small;
+
+  updateSticker(sub);
+}
+
+function updateSticker(sub){
+
+  let s=data[sub].stickers;
+
+  document.getElementById("bigSticker").innerText="大："+s.big;
+  document.getElementById("smallSticker").innerText="小："+s.small;
+}
+
+// =================
+// 内省保存
+// =================
+function saveReflection(){
+
+  const sub=getSub();
+  const text=document.getElementById("reflectionInput").value;
+
+  data[sub].reflections.push(text);
+
+  save();
+
+  alert("保存完了");
+}
+
+// =================
+// 初期化
+// =================
+function initUI(){
+  updateSticker(getSub());
+  generateProblem(getSub());
+}
+
+initUI();
+
+// =================
+// PWA（サービスワーカー）
+// =================
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js");
+}
+
+</script>
+
+</body>
+</html>{
+  "name": "学習アプリ",
+  "short_name": "学習",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4CAF50",
+  "icons": []
+}self.addEventListener("install", e=>{
+  e.waitUntil(
+    caches.open("app").then(cache=>{
+      return cache.addAll(["./"]);
+    })
+  );
+});
+
+self.addEventListener("fetch", e=>{
+  e.respondWith(
+    caches.match(e.request).then(res=>{
+      return res || fetch(e.request);
+    })
+  );
+});
