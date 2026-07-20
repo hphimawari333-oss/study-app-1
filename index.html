@@ -786,3 +786,141 @@ document.getElementById("subject").addEventListener("change", () => {
 // 初期表示
 updateStickerUI(getSubject());
 </script>
+// =======================
+// 苦手分析モジュール（完全版）
+// =======================
+
+// 初期化（既存dataに追記される形）
+if(!data.weak){
+  data.weak = {
+    math: {},
+    english: {},
+    science: {}
+  };
+}
+
+// -----------------------
+// 苦手記録
+// -----------------------
+function recordMistake(subject, tag){
+
+  if(!tag) return;
+
+  if(!data.weak[subject][tag]){
+    data.weak[subject][tag] = 0;
+  }
+
+  data.weak[subject][tag]++;
+
+  save();
+}
+
+// -----------------------
+// 苦手ランキング取得
+// -----------------------
+function getWeakRanking(subject){
+
+  const weak = data.weak[subject];
+
+  return Object.keys(weak)
+    .sort((a,b)=>weak[b]-weak[a]);
+}
+
+// -----------------------
+// 最優先苦手取得
+// -----------------------
+function getTopWeak(subject){
+
+  const ranking = getWeakRanking(subject);
+
+  return ranking.length ? ranking[0] : "基礎";
+}
+
+// -----------------------
+// 苦手ベース問題生成
+// -----------------------
+function generateQuestion(subject){
+
+  const target = getTopWeak(subject);
+
+  let q = "";
+
+  switch(target){
+
+    case "計算ミス":
+      q = "【計算ミス対策】同じ問題を3回連続で解こう";
+      break;
+
+    case "理解不足":
+      q = "【基礎固め】基本問題を解こう";
+      break;
+
+    case "単語":
+      q = "【暗記】英単語5問テスト";
+      break;
+
+    default:
+      q = "【応用】総合問題";
+  }
+
+  document.getElementById("question").innerText = q;
+}
+
+// -----------------------
+// 解答→苦手蓄積ループ
+// -----------------------
+function submitAnswer(correct, subject, tag){
+
+  if(!correct){
+    recordMistake(subject, tag);
+  }
+
+  generateQuestion(subject);
+}
+
+// -----------------------
+// 苦手ノート生成
+// -----------------------
+function generateWeakNote(subject){
+
+  const weak = data.weak[subject];
+
+  let note = "【苦手ノート】\n";
+
+  Object.keys(weak)
+    .sort((a,b)=>weak[b]-weak[a])
+    .forEach(k => {
+      note += `・${k}：${weak[k]}回ミス\n`;
+    });
+
+  if(note === "【苦手ノート】\n"){
+    note += "苦手データなし";
+  }
+
+  document.getElementById("issue").innerText = note;
+}
+
+// -----------------------
+// 個別参考書生成
+// -----------------------
+function generatePersonalBook(subject){
+
+  const weak = data.weak[subject];
+
+  let book = "【専用参考書】\n\n";
+
+  Object.keys(weak)
+    .sort((a,b)=>weak[b]-weak[a])
+    .forEach(k => {
+      book += `■ ${k}\n`;
+      book += "① 解説\n";
+      book += "② 例題\n";
+      book += "③ 練習問題\n\n";
+    });
+
+  if(book === "【専用参考書】\n\n"){
+    book += "まだデータが足りません";
+  }
+
+  document.getElementById("question").innerText = book;
+}
