@@ -457,3 +457,152 @@ function generateSmartQuestion(subject, avg){
   return "問題生成失敗";
 }
 </script>
+<div>
+  <h2>📊 テスト入力</h2>
+  <input type="number" id="scoreInput" placeholder="点数入力">
+  <button onclick="submitScore()">確定</button>
+
+  <h3>📈 分析</h3>
+  <div id="analysis"></div>
+
+  <h3>❗課題</h3>
+  <div id="issue"></div>
+
+  <h3>📝 問題</h3>
+  <div id="question"></div>
+
+  <h3>🎖 シール</h3>
+  <div id="bigSticker">大シール：0</div>
+  <div id="smallSticker">小シール：0</div>
+</div>
+
+<script>
+// =======================
+// データ保存
+// =======================
+let history = JSON.parse(localStorage.getItem("history")) || [];
+let stickers = JSON.parse(localStorage.getItem("stickers")) || {
+  big: 0,
+  small: 0
+};
+
+// =======================
+// スコア登録
+// =======================
+function submitScore(){
+  const score = Number(document.getElementById("scoreInput").value);
+  if(!score) return;
+
+  history.push(score);
+  localStorage.setItem("history", JSON.stringify(history));
+
+  analyze();
+  generateIssue();
+  generateQuestion();
+  convertScoreToSticker(score);
+}
+
+// =======================
+// 分析
+// =======================
+function analyze(){
+  if(history.length < 2){
+    document.getElementById("analysis").innerText = "データ不足";
+    return;
+  }
+
+  const last = history[history.length - 1];
+  const prev = history[history.length - 2];
+  const diff = last - prev;
+
+  let msg = `前回との差：${diff}`;
+
+  if(diff > 0){
+    msg += "（成長）";
+  } else if(diff < 0){
+    msg += "（下降）";
+  }
+
+  document.getElementById("analysis").innerText = msg;
+}
+
+// =======================
+// 課題抽出
+// =======================
+let currentIssue = "";
+
+function generateIssue(){
+  const score = history[history.length - 1];
+
+  if(score < 70){
+    currentIssue = "基礎理解が不足";
+  } else if(score < 90){
+    currentIssue = "ミスが多い";
+  } else if(score < 100){
+    currentIssue = "ケアレスミス対策";
+  } else {
+    currentIssue = "満点維持";
+  }
+
+  document.getElementById("issue").innerText = currentIssue;
+}
+
+// =======================
+// 問題生成（簡易）
+// =======================
+function generateQuestion(){
+  let q = "";
+
+  if(currentIssue.includes("基礎")){
+    q = "基本問題を解こう";
+  } else if(currentIssue.includes("ミス")){
+    q = "見直し問題";
+  } else {
+    q = "応用問題";
+  }
+
+  document.getElementById("question").innerText = q;
+}
+
+// =======================
+// シール変換
+// =======================
+function convertScoreToSticker(score){
+
+  let big = 0;
+  let small = 0;
+
+  if(score === 100){
+    big = 3;
+    small = 2;
+  } else if(score >= 90){
+    big = 2;
+    small = 2;
+  } else if(score >= 80){
+    big = 1;
+    small = 2;
+  } else if(score >= 70){
+    small = 2;
+  } else if(score >= 60){
+    small = 1;
+  }
+
+  stickers.big += big;
+  stickers.small += small;
+
+  localStorage.setItem("stickers", JSON.stringify(stickers));
+
+  updateStickerUI();
+}
+
+// =======================
+// 表示更新
+// =======================
+function updateStickerUI(){
+  document.getElementById("bigSticker").innerText = "大シール：" + stickers.big;
+  document.getElementById("smallSticker").innerText = "小シール：" + stickers.small;
+}
+
+// 初期表示
+updateStickerUI();
+</script>
