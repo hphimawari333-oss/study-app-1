@@ -1026,3 +1026,748 @@ function checkAnswer(){
   // 次の問題
   generateQuestion(subject);
 }
+// =======================
+// 本物問題データベース
+// =======================
+const problemDB = {
+
+  math: {
+
+    計算ミス: [
+      {
+        level: "基礎",
+        q: () => {
+          const a = Math.floor(Math.random()*20)+1;
+          const b = Math.floor(Math.random()*20)+1;
+          return {
+            text: `${a} + ${b} = ?`,
+            answer: a + b
+          };
+        }
+      }
+    ],
+
+    理解不足: [
+      {
+        level: "標準",
+        q: () => {
+          const x = 5;
+          return {
+            text: `x + 3 = 8 のとき x は？`,
+            answer: x
+          };
+        }
+      }
+    ],
+
+    応用: [
+      {
+        level: "応用",
+        q: () => {
+          return {
+            text: `ある数の2倍に3を足すと11になる。その数は？`,
+            answer: 4
+          };
+        }
+      }
+    ]
+  },
+
+  english: {
+
+    単語: [
+      {
+        level: "基礎",
+        q: () => ({
+          text: "apple の意味は？",
+          answer: "りんご"
+        })
+      }
+    ],
+
+    文法: [
+      {
+        level: "標準",
+        q: () => ({
+          text: "I ___ to school yesterday. (go)",
+          answer: "went"
+        })
+      }
+    ]
+  },
+
+  science: {
+
+    理解不足: [
+      {
+        level: "基礎",
+        q: () => ({
+          text: "水の化学式は？",
+          answer: "H2O"
+        })
+      }
+    ]
+  }
+};function generateQuestion(subject){
+
+  const weak = getTopWeak(subject);
+
+  // DBから該当ジャンル取得
+  let category = problemDB[subject][weak];
+
+  // なければ応用へ逃がす
+  if(!category){
+    category = problemDB[subject]["応用"] || Object.values(problemDB[subject])[0];
+  }
+
+  // ランダム選択
+  const problem = category[Math.floor(Math.random()*category.length)].q();
+
+  currentProblem = {
+    subject,
+    type: weak,
+    correctAnswer: problem.answer
+  };
+
+  document.getElementById("question").innerText = problem.text;
+}function getLevel(subject){
+
+  const history = data[subject].history;
+  if(history.length === 0) return "基礎";
+
+  const avg = history.reduce((a,b)=>a+b,0)/history.length;
+
+  if(avg < 60) return "基礎";
+  if(avg < 85) return "標準";
+  return "応用";
+}// =======================
+// ミス原因の問いかけ生成
+// =======================
+function generateReflection(subject, type){
+
+  let msg = "なぜ間違えた？\n";
+
+  switch(type){
+
+    case "計算ミス":
+      msg += "・途中式を書いた？\n";
+      msg += "・見直しした？\n";
+      msg += "・どこでズレた？";
+      break;
+
+    case "理解不足":
+      msg += "・公式の意味わかってる？\n";
+      msg += "・似た問題と何が違う？\n";
+      msg += "・どの時点で止まった？";
+      break;
+
+    case "単語":
+      msg += "・見たことある単語？\n";
+      msg += "・どこで覚え違いした？\n";
+      msg += "・どうやって覚える？";
+      break;
+
+    default:
+      msg += "・どこで迷った？\n";
+      msg += "・何が分からなかった？";
+  }
+
+  document.getElementById("issue").innerText = msg;
+}
+    function checkAnswer(){
+
+  const userAnswer = document.getElementById("answerInput").value;
+  const correct = currentProblem.correctAnswer;
+  const subject = currentProblem.subject;
+  const type = currentProblem.type;
+
+  let isCorrect = false;
+
+  if(subject === "math"){
+    isCorrect = Number(userAnswer) === correct;
+  } else {
+    isCorrect = userAnswer.trim() === correct;
+  }
+
+  if(isCorrect){
+    document.getElementById("result").innerText = "⭕ 正解";
+  } else {
+    document.getElementById("result").innerText = `❌ 不正解（正解：${correct}）`;
+
+    // 🔥 ここ追加
+    generateReflection(subject, type);
+
+    // 苦手記録
+    recordMistake(subject, type);
+  }
+
+  generateQuestion(subject);
+}
+    <h3>🤔 自分で考える</h3>
+<textarea id="reflectionInput" placeholder="なぜ間違えた？"></textarea>
+<button onclick="saveReflection()">保存</button>
+if(!data.reflection){
+  data.reflection = [];
+}
+
+function saveReflection(){
+
+  const text = document.getElementById("reflectionInput").value;
+
+  data.reflection.push({
+    problem: currentProblem,
+    note: text,
+    time: new Date()
+  });
+
+  save();
+
+  alert("記録した！");
+}
+  if(!data.reflection){
+  data.reflection = [];
+}
+
+function saveReflection(){
+
+  const text = document.getElementById("reflectionInput").value;
+
+  data.reflection.push({
+    problem: currentProblem,
+    note: text,
+    time: new Date()
+  });
+
+  save();
+
+  alert("記録した！");
+}// =======================
+// 思考分析AI（簡易版）
+// =======================
+function analyzeReflection(text, type){
+
+  let feedback = "🧠 AIコメント\n";
+
+  // -----------------------
+  // 共通チェック
+  // -----------------------
+  if(text.length < 10){
+    feedback += "→ もう少し詳しく書こう。何がダメだった？\n";
+  }
+
+  // -----------------------
+  // タイプ別分析
+  // -----------------------
+  if(type === "計算ミス"){
+
+    if(!text.includes("途中") && !text.includes("見直し")){
+      feedback += "→ 途中式・見直しの視点が抜けてる\n";
+    }
+
+    if(text.includes("なんとなく")){
+      feedback += "→ 感覚で解いてる。再現性がない\n";
+    }
+
+    feedback += "→ 次は『途中式を書く→確認』を徹底\n";
+  }
+
+  if(type === "理解不足"){
+
+    if(!text.includes("公式") && !text.includes("意味")){
+      feedback += "→ 公式の理解に触れていない\n";
+    }
+
+    if(text.includes("忘れた")){
+      feedback += "→ 暗記頼り。理解に変えよう\n";
+    }
+
+    feedback += "→ 『なぜそうなるか』説明できる？\n";
+  }
+
+  if(type === "単語"){
+
+    if(text.includes("覚えてない")){
+      feedback += "→ 覚え方を変える必要あり\n";
+    }
+
+    if(!text.includes("復習")){
+      feedback += "→ 復習戦略がない\n";
+    }
+
+    feedback += "→ 間違えた単語は3回書く＋使う\n";
+  }
+
+  return feedback;
+}function saveReflection(){
+
+  const text = document.getElementById("reflectionInput").value;
+  const type = currentProblem.type;
+
+  // AI分析
+  const aiComment = analyzeReflection(text, type);
+
+  data.reflection.push({
+    problem: currentProblem,
+    note: text,
+    ai: aiComment,
+    time: new Date()
+  });
+
+  save();
+
+  // 表示
+  document.getElementById("issue").innerText = aiComment;
+}function generateActionPlan(type){
+
+  let plan = "\n🎯 次の行動\n";
+
+  switch(type){
+
+    case "計算ミス":
+      plan += "・途中式を書く\n・解いた後1回見直す";
+      break;
+
+    case "理解不足":
+      plan += "・公式を説明できるか確認\n・基本問題を3問やる";
+      break;
+
+    case "単語":
+      plan += "・3回書く\n・例文で使う";
+      break;
+
+    default:
+      plan += "・もう一度解き直し";
+  }
+
+  return plan;
+}const plan = generateActionPlan(type);
+document.getElementById("issue").innerText = aiComment + plan;
+    async function callAI(prompt){
+
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer YOUR_API_KEY"
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "あなたは優秀な家庭教師です。生徒に考えさせる指導をしてください。" },
+        { role: "user", content: prompt }
+      ]
+    })
+  });
+
+  const data = await res.json();
+  return data.choices[0].message.content;
+}async function saveReflection(){
+
+  const text = document.getElementById("reflectionInput").value;
+  const problem = currentProblem;
+
+  const prompt = `
+問題：
+${problem.type}
+
+生徒の回答：
+${text}
+
+やること：
+1. 間違いの原因を分析
+2. 気づかせる問いを出す
+3. 改善行動を提案
+
+優しく、考えさせる形で
+`;
+
+  const aiComment = await callAI(prompt);
+
+  data.reflection.push({
+    problem,
+    note: text,
+    ai: aiComment,
+    time: new Date()
+  });
+
+  save();
+
+  document.getElementById("issue").innerText = aiComment;
+}
+    async function generateExplanation(){
+
+  const p = currentProblem;
+
+  const prompt = `
+問題：
+${document.getElementById("question").innerText}
+
+正解：
+${p.correctAnswer}
+
+中学生でも分かるように解説して。
+途中の考え方を重視。
+`;
+
+  const explanation = await callAI(prompt);
+
+  document.getElementById("question").innerText += "\n\n【解説】\n" + explanation;
+}if(!isCorrect){
+  await generateExplanation();
+}【問題生成コード】
+
+目的：
+解説なしで、自分の思考のズレ・苦手に気づかせる
+
+---
+
+① 問題設計（ミス誘発）
+・一見同じに見えるが本質が違う問題を作る
+・典型ミスを誘発する選択肢を必ず含める
+
+---
+
+② 出題形式
+Q. 問題提示
+
+（条件）
+・即答すると間違える設計
+・迷いが生まれる構造
+
+---
+
+③ 回答後（ここ重要）
+※解説は出さない
+
+代わりに以下を提示👇
+
+---
+
+【自己分析フェーズ】
+
+1. なぜその答えを選んだ？
+2. 他の選択肢はなぜ違うと思った？
+3. 判断に使ったルールは何？
+
+---
+
+④ ミス特定
+
+以下から選ばせる：
+
+・見落とし
+・思い込み
+・パターン暗記
+・理解不足
+・条件の読み違い
+
+＋自由記述：
+→ どこでズレた？
+
+---
+
+⑤ 比較問題（ペア）
+
+A：正しいケース  
+B：間違えやすいケース  
+
+Q. 違いは何？
+
+---
+
+⑥ 再認識問い
+
+・なぜAはOKでBはNG？
+・自分はどこで同一視した？
+
+---
+
+⑦ 自分ルール生成（最重要）
+
+Q. 次ミスしないためのルールを書け
+
+形式：
+「〇〇のときは必ず△△する」
+
+---
+
+⑧ 再テスト
+
+・同構造の別問題を出す
+・ルールが機能するか確認
+
+---
+
+⑨ メタ認知
+
+最後に：
+
+・今回のミスの本質は？
+・今後同じミスが起きる場面は？
+
+---
+
+【禁止事項】
+
+・すぐ解説しない
+・正解だけで終わらせない
+・「理解したつもり」を許さない
+    ⑩ フェイク確信トラップ
+
+・「自信ありで間違える問題」を入れる
+
+Q. 自信度（%）を書かせる
+→ 高いのに間違えたら危険ポイント確定
+
+---
+
+⑪ 思考ログ
+
+解くときに：
+
+・何を見た？
+・何を無視した？
+
+を書かせる
+
+---
+
+⑫ ミスの再現
+
+「なぜそのミスが自然に起きたか」を説明させる
+    class AwarenessLearning:
+    def __init__(self, theme):
+        self.theme = theme
+
+    def generate_problem(self, level):
+        problems = {
+            1: {
+                "question": "100円のうち30円は何%？",
+                "choices": ["30%", "3%", "70%", "130%"],
+                "trap": "基準の取り違え"
+            },
+            2: {
+                "question": "200円の30%はいくら？",
+                "choices": ["60円", "6円", "230円", "170円"],
+                "trap": "%の意味理解不足"
+            },
+            3: {
+                "question": "ある数の30%が60のとき、その数は？",
+                "choices": ["200", "20", "180", "90"],
+                "trap": "逆算ミス"
+            },
+            4: {
+                "question": "100円を30%値上げ後、30%値下げ。最終はいくら？",
+                "choices": ["100円", "91円", "90円", "99円"],
+                "trap": "基準変化ミス"
+            }
+        }
+        return problems.get(level, {})
+
+    def self_analysis(self):
+        return [
+            "なぜそれを選んだ？",
+            "他の選択肢をどう判断した？",
+            "どこを基準に考えた？"
+        ]
+
+    def mistake_classification(self):
+        return [
+            "見落とし",
+            "思い込み",
+            "パターン暗記",
+            "理解不足",
+            "計算ミス"
+        ]
+
+    def comparison(self, level):
+        comparisons = {
+            1: ("100円のうち30円", "30円のうち100円"),
+            2: ("200の30%", "30の200%"),
+            3: ("200の30%", "□の30%が60"),
+            4: ("値上げ30%", "値下げ30%")
+        }
+        return comparisons.get(level, ("", ""))
+
+    def rule_generation_prompt(self):
+        return "『〇〇のときは必ず△△する』の形で自分ルールを書け"
+
+    def run_session(self, level):
+        problem = self.generate_problem(level)
+
+        print("【問題】")
+        print(problem["question"])
+        for i, c in enumerate(problem["choices"]):
+            print(f"{chr(65+i)}. {c}")
+
+        print("\n【自己分析】")
+        for q in self.self_analysis():
+            print("-", q)
+
+        print("\n【ミス分類】")
+        for m in self.mistake_classification():
+            print("-", m)
+
+        comp = self.comparison(level)
+        print("\n【比較問題】")
+        print("①", comp[0])
+        print("②", comp[1])
+
+        print("\n【ルール生成】")
+        print(self.rule_generation_prompt())
+
+        print("\n【トラップ】:", problem["trap"])
+
+
+# 実行例
+engine = AwarenessLearning("割合")
+engine.run_session(level=1)
+    def confidence_check():
+    return "自信度を%で書け（低いのに正解＝危険）"
+
+def retry_problem():
+    return "今のルールを使ってもう一度解け"
+
+def error_log(user_answer, correct):
+    return f"ズレ分析: {user_answer} → {correct}"
+    import random
+
+class AdaptiveLearningEngine:
+    def __init__(self):
+        self.level = 1
+        self.history = []  # ミス履歴
+        self.skill_score = 0  # 理解度
+
+    # ------------------------
+    # 問題データベース
+    # ------------------------
+    def base_problems(self):
+        return {
+            1: [
+                {"q": "100円のうち30円は何%？", "a": "30%", "trap": "基準ミス"},
+            ],
+            2: [
+                {"q": "200円の30%はいくら？", "a": "60円", "trap": "%意味"},
+            ],
+            3: [
+                {"q": "ある数の30%が60、その数は？", "a": "200", "trap": "逆算"},
+            ],
+            4: [
+                {"q": "100円→30%↑→30%↓ 最終は？", "a": "91円", "trap": "基準変化"},
+            ]
+        }
+
+    # ------------------------
+    # ミス履歴から問題生成
+    # ------------------------
+    def generate_from_mistake(self):
+        if not self.history:
+            return None
+
+        last_miss = self.history[-1]
+
+        # ミスパターンごとに再出題
+        if last_miss["trap"] == "基準ミス":
+            return {
+                "q": "50円のうち25円は何%？",
+                "a": "50%",
+                "trap": "基準ミス（再）"
+            }
+
+        if last_miss["trap"] == "基準変化":
+            return {
+                "q": "200円を20%増→20%減、最終は？",
+                "a": "192円",
+                "trap": "基準変化（強化）"
+            }
+
+        return None
+
+    # ------------------------
+    # レベル自動調整
+    # ------------------------
+    def adjust_level(self, correct):
+        if correct:
+            self.skill_score += 1
+        else:
+            self.skill_score -= 1
+
+        # レベルアップ
+        if self.skill_score >= 2:
+            self.level += 1
+            self.skill_score = 0
+
+        # レベルダウン
+        if self.skill_score <= -2:
+            self.level = max(1, self.level - 1)
+            self.skill_score = 0
+
+    # ------------------------
+    # 問題取得ロジック
+    # ------------------------
+    def get_problem(self):
+        # ミス履歴優先
+        retry = self.generate_from_mistake()
+        if retry:
+            return retry
+
+        # 通常問題
+        problems = self.base_problems().get(self.level, [])
+        return random.choice(problems)
+
+    # ------------------------
+    # 回答処理
+    # ------------------------
+    def submit_answer(self, problem, user_answer):
+        correct = user_answer == problem["a"]
+
+        if not correct:
+            self.history.append(problem)
+
+        self.adjust_level(correct)
+
+        return {
+            "correct": correct,
+            "level": self.level,
+            "next_action": "retry_mistake" if not correct else "next"
+        }
+
+    # ------------------------
+    # 内省誘導
+    # ------------------------
+    def reflection(self):
+        return [
+            "どこを基準に考えた？",
+            "なぜその式にした？",
+            "前回と何が違う？"
+        ]
+
+
+# ------------------------
+# 実行例
+# ------------------------
+engine = AdaptiveLearningEngine()
+
+# 1問出す
+p = engine.get_problem()
+print("問題:", p["q"])
+
+# 仮の回答
+result = engine.submit_answer(p, "間違い")
+
+print("結果:", result)
+
+print("\n内省:")
+for r in engine.reflection():
+    print("-", r)
+          def detect_mistake_type(user_answer, problem):
+    # 本来は解析ロジック入れる
+    return problem["trap"]
+
+def confidence_input():
+    return "自信度を入力（0〜100）"
+
+def adaptive_retry_depth(history):
+    # 同じミスが続いたら難易度下げる or 分解する
+    return len(history)
+          
